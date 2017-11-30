@@ -21,10 +21,18 @@ define(function(){
 		if (_strukt instanceof Strukt){
 			return _strukt;
 		}
+
+		this.__globalClasses = {};
+		this.__globalInterfaces = {};
 	};
 
 	Strukt.prototype = {
+		GLOBAL : "global",
+		PRIVATE : "private",
 		Meta : Meta,
+		__err : function(msg){
+			throw new Error(this.__join("Strukt Error: ", msg));
+		},
 		__loop : function(coll, cb, ctx){
 			for (var k in coll){
 				cb.call(ctx, coll[k], k, coll);
@@ -36,7 +44,43 @@ define(function(){
 		__rename : function(fun, name){
 			return eval(this.__join(fun.toString().replace("function", this.__join("function ", name)), ";", name));
 		},
-		Class : function(name, proto){
+		__extend : function(parent, child){
+			console.log(parent, child);
+		},
+		__extends : function(Klass){
+			var _this = (typeof this == "function") ? this : this.construktor;
+
+			if (_this.__meta && _this.__meta instanceof Meta){
+
+				if (typeof Klass == "function" && Klass.__meta && Klass.__meta instanceof Meta){
+					return _strukt.__extend(Klass, this);
+				} else {	
+					this.__err("only strukt-Classes can be extended");
+				}
+
+			} else {
+				this.__err("only strukt-Class can extend another strukt-Class");
+			}
+		},
+		__implements : function(){
+			var _this = (typeof this == "function") ? this.prototype : this;
+
+			if (_this.__meta && _this.__meta instanceof Meta){
+
+			} else {
+				this.__err("only strukt-Classes can implement stukt-Interfaces");
+			}
+		},
+		Class : function(access, name, proto){
+
+			if (!name && !proto && typeof access == "string"){
+				if (this.__globalClasses[access]){
+					return this.__globalClasses[access];
+				} else {
+					this.__err(this.__join("global class \"", access,"\" not found"));
+				}
+			}
+
 			var Construktor = function(){
 				this.__meta.create(this, arguments);
 			};
@@ -50,9 +94,60 @@ define(function(){
 				configurable : false
 			});
 
+			this.prop(Construktor, "__meta", {
+				value : new this.Meta(this, "class", name, proto),
+				writable : false,
+				enumerable : false,
+				configurable : false
+			});
+
+			this.prop(Construktor.prototype, "extends", {
+				value : this.__extends,
+				writable : false,
+				enumerable : false,
+				configurable : false
+			});
+
+			this.prop(Construktor.prototype, "implements", {
+				value : this.__implements,
+				writable : false,
+				enumerable : false,
+				configurable : false
+			});
+
+			this.prop(Construktor, "extends", {
+				value : this.__extends,
+				writable : false,
+				enumerable : false,
+				configurable : false
+			});
+
+			this.prop(Construktor, "implements", {
+				value : this.__implements,
+				writable : false,
+				enumerable : false,
+				configurable : false
+			});
+
+			this.prop(Construktor.prototype, "construktor", {
+				value : Construktor,
+				writable : false,
+				enumerable : false,
+				configurable : false
+			});
+
 			this.__loop(proto, function(config, name){
 				this.prop(Construktor.prototype, name, config);
 			}, this);
+
+			switch(access){
+				case this.GLOBAL:
+					this.__globalClasses[name] = Construktor;
+				break;
+				case this.PRIVATE:
+
+				break;
+			}
 
 			return Construktor;
 
